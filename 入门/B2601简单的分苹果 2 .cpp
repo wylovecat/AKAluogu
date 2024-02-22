@@ -2,6 +2,8 @@
 using namespace std;
 int main()
 {
-	cout<<6<<" "<<4;
+	cout<<3<<endl;
+	cout<<12<<endl;
+	cout<<2;
 	return 0;
 }
