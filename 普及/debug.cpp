@@ -1,55 +1,152 @@
-#include <iostream>
-#include <algorithm>
-#include <cstdio>
+#include<bits/stdc++.h>
+#define int long long
 using namespace std;
-int a[70],n;
-bool vis[70];
-int m;
-int nxt[70];//nxt[x] 长度小于x的下一个小木棍的长度
-int les[5000],cnt[5000];
-/*
-1. 原始木棍的长度 一定是 总长的因子
-2. 可能存储相同的小木棍，当长度a[i]不满足要求，和他一样长的小木棍也一定不符合要求
-3. 木棍越短，能够拼接的可能性也就越多，可以先从长的小木棍开始拼接，减少整体搜索次数。
+const int N=100010;
 
-4. 如果搜索后发现长度是不合适，且剩余的长度等于原始木棍长度。
-说明之前的选择存在问题，可以直接回溯。
-5. 如果搜索后发现长度是不合适,且该长度等于剩余的长度
+int n,m,a[N],fa[N],dep[N],siz[N],son[N],top[N],dfn[N],rnk[N];
+int h[N*2],nxt[N*2],w[N*2],cur,cnt;
+int tag[N*4],xds[N*4],ma[N*4];
 
-*/
-void dfs(int ori,int now,int re,int st){//拼接目标 当前木棍待拼接长度 剩余拼接的
-	if(now==0){//一根长木棍拼接成功
-		dfs(ori,ori,re-1,1);
-		return ;
-	}
-	if(re==0){//全部拼完
-		printf("%d",ori);
-		exit(0);
-	}
-	//剪枝3 寻找时，从大到小去找小木棍
-	//找到小木棍中小于等于剩余长度的最大长度
-	for(int i=st;i<=m;i++){
-		if(!cnt[a[i]] || a[i]>now) continue;
-		cnt[a[i]]--;
-		dfs(ori,now-a[i],re,i);
-		cnt[a[i]]++;
-		if(now==ori || a[i]==now) return ;//优化4，5
-	}
+void make(int x,int y){
+    cur++;
+    nxt[cur]=h[x];
+    h[x]=cur;
+    w[cur]=y;
 }
-int main(){
-	int sum=0;
-	scanf("%d",&n);
-	for(int i=1;i<=n;i++){
-		scanf("%d",&a[i]);
-		sum+=a[i];//求和
-		cnt[a[i]]++;//记录a[i]个数
+
+void dfs1(int u){
+    siz[u]=1;
+    son[u]=-1;
+    for(int i=h[u];i;i=nxt[i]){
+        if(!dep[w[i]]){
+            dep[w[i]]=dep[u]+1;
+            fa[w[i]]=u;
+            dfs1(w[i]);
+            siz[u]+=siz[w[i]];
+            if(son[u]==-1||siz[w[i]]>siz[son[u]]) son[u]=w[i];
+        }
+    }
+}
+
+void dfs2(int u,int t){
+    top[u]=t;
+    dfn[u]=++cnt;
+    rnk[cnt]=u;
+    if(son[u]==-1) return;
+    dfs2(son[u],t);
+    for(int i=h[u];i;i=nxt[i]){
+        if(w[i]!=son[u]&&w[i]!=fa[u]) dfs2(w[i],w[i]);
+    }
+}
+
+int in(int l,int r,int L,int R){
+    return (L<=l)&&(R>=r);
+}
+
+void pushup(int u){
+    xds[u]=(xds[u*2]+xds[u*2+1]);
+    ma[u] = max(ma[u*2],ma[u*2+1]);
+}
+
+void build(int u,int l,int r) {
+    if(l==r) {
+        ma[u] = xds[u]=a[dfn[l]];
+        return;
+    }
+    int mid=(l+r)>>1;
+    build(u*2,l,mid);
+    build(u*2+1,mid+1,r);
+    pushup(u);
+    return;
+}
+
+void update(int u,int l,int r,int L,int R,int x){
+    if(l==r) {
+    	ma[u] = xds[u] = x;
+    	return ;
+    }
+    int mid=(l+r)/2;
+    if(L<=mid) update(u*2,l,mid,L,R,x);
+    else update(u*2+1,mid+1,r,L,R,x);
+    pushup(u);
+}
+
+int query(int u,int l,int r,int L,int R){
+    if(in(l,r,L,R)){
+        return xds[u];
+    }
+    int mid=(l+r)/2;
+  //  pushup(u);
+    int ans = 0;
+	if(L<=mid) ans = query(u*2,l,mid,L,R);
+	if(R>mid) ans += query(u*2+1,mid+1,r,L,R);
+	return ans;
+}
+
+int qrymax(int u,int l,int r,int L,int R) {
+	if(in(l,r,L,R)){
+        return ma[u];
+    }
+    int ans = -1e9 - 7;
+    int mid=(l+r)>>1;
+ //   pushup(u);
+    if(L<=mid) ans = qrymax(u*2,l,mid,L,R);
+	if(R>mid) ans = max(ans,qrymax(u*2+1,mid+1,r,L,R));
+	return ans;
+}
+
+int qryma(int x,int y) {
+    int ans = -1e9-7;
+	while(top[x]!=top[y]) {
+        if(dep[top[x]]<dep[top[y]]) swap(x,y);
+        ans = max(ans,qrymax(1,1,n,dfn[top[x]],dfn[x]));
+        x=fa[top[x]];
 	}
-	sort(a+1,a+1+n,greater<int>());//从大到小排序
-	m=unique(a+1,a+1+n)-a-1;//用unique 进行去重
-	for(int i=a[1];i<=sum;i++){//从最长的小木棍开始找起
-		if(sum%i) continue;//长度不是总长的因数不予考虑 可行性优化 //优化1
-		dfs(i,i,sum/i,1);
-	}
-	printf("%d",sum);
-	return 0;
+	if(dep[x]<dep[y]) swap(x,y);
+    return max(ans,qrymax(1,1,n,dfn[y],dfn[x]));
+}
+
+int qry(int x,int y){
+    int ans = 0;
+    while(top[x]!=top[y]){
+        if(dep[top[x]]<dep[top[y]]) swap(x,y);
+        ans+=query(1,1,n,dfn[top[x]],dfn[x]);
+        x=fa[top[x]];
+    }
+	if(dep[x]<dep[y]) swap(x,y);
+    return ans+query(1,1,n,dfn[y],dfn[x]);
+}
+
+signed main(){
+    ios::sync_with_stdio(0);
+    cin.tie(0);
+    cout.tie(0);
+    cin>>n;
+    int u,v;
+    for(int i=1;i<n;i++){
+        cin>>u>>v;
+        make(u,v);
+        make(v,u);
+    }
+    for(int i=1;i<=n;i++) cin>>a[i];
+	dep[1]=1;
+    dfs1(1);
+    dfs2(1,1);
+    build(1,1,n);
+    string op;int t;
+    cin>>m;
+    for(int i=1;i<=m;i++){
+        cin>>op;
+        if(op=="CHANGE") {
+        	cin>>u>>t;
+        	update(1,1,n,dfn[u],dfn[u],t);
+		} else if(op=="QMAX") {
+			cin>>u>>v;
+			cout<<qryma(u,v)<<'\n';
+		} else {
+			cin>>u>>v;
+			cout<<qry(u,v)<<'\n';
+		}
+    }
+    return 0;
 }
